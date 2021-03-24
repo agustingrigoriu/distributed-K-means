@@ -22,7 +22,7 @@ object KMeansClusteringMain {
     var dotProduct: Double = 0.0
 
     m1.keys.foreach(word => {
-      if (m2.contains(word)) dotProduct += (m1.getOrElse(word, 0.0) + m2.getOrElse(word, 0.0))
+      if (m2.contains(word)) dotProduct += (m1.getOrElse(word, 0.0) * m2.getOrElse(word, 0.0))
     })
 
     val m1SumOfSquares = m1.values.map(freq => math.pow(freq, 2)).sum
@@ -70,6 +70,11 @@ object KMeansClusteringMain {
       .map(row => (row.getLong(0), row.getString(1)))
       .mapValues(title => parseToBOW(title))
 
+
+    val selfCos = bagOfWords.join(bagOfWords).mapValues(maps => calculateCosineSimilarity(maps._1, maps._2))
+    val collection = selfCos.collect()
+    print(collection)
+//    val sim2 = calculateCosineSimilarity(bagOfWords.first()._2, ba._2)
 
 
     //    .filter(x => x.Document)
