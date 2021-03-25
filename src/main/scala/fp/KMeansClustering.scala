@@ -11,19 +11,15 @@ import org.apache.spark.rdd.RDD
 object KMeansClusteringMain {
 
 
+
+  // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: SparseVector) = {
     val commonIndices = vectorA.indices intersect vectorB.indices
 
     // Calculating the sum of Xi * Yi.
     val productsSum = commonIndices.map(x => vectorA(x) * vectorB(x)).reduceOption(_+_)
 
-    // Calculating norm of each vector. SQRT(SUM(Xi^2)).
-    val vecNorm = math.sqrt(vectorA.indices.map(i => math.pow(vectorA(i), 2)).sum)
-    val vecOtherNorm = math.sqrt(vectorB.indices.map(i => math.pow(vectorB(i), 2)).sum)
-
-    val cosineSim = productsSum.getOrElse(0.0) / (vecNorm * vecOtherNorm)
-
-    cosineSim
+    productsSum.getOrElse(0.0)
   }
 
   def main(args: Array[String]) {
@@ -88,10 +84,15 @@ object KMeansClusteringMain {
 
     bagOfWords.show(true)
 
+    val normalizer = new Normalizer()
+      .setInputCol("bagOfWords")
+      .setOutputCol("normalizedBagOfWords")
 
-    // Now we test that the similariy functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
-    val testRDD: RDD[(Long, SparseVector)] = bagOfWords
-      .select("created_utc", "bagOfWords").rdd
+    val normalizedBagOfWords = normalizer.transform(bagOfWords)
+
+    // Now we test that the similarity functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
+    val testRDD: RDD[(Long, SparseVector)] = normalizedBagOfWords
+      .select("created_utc", "normalizedBagOfWords").rdd
       .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
 
 
