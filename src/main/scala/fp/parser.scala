@@ -3,7 +3,7 @@ package fp
 import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
-
+import org.apache.spark.sql.functions._ 
 
 object parserMain {
 
@@ -34,6 +34,9 @@ object parserMain {
     val df = tweets.as("S1").select("created_at", "text", "user_id")
     .join(users.select("id", "name").as("S2")).where($"S1.user_id" === $"S2.id")
     val output = df.drop("id")
+    val indexOutput = output.withColumn("id",monotonicallyIncreasingId)
+    val kMeansData = indexOutput.select("id","text")
+    val metaData = indexOutput.select("id","created_at","user_id","name")
     output.coalesce(1).write.csv("/mnt/d/data/total.csv")
     
   }
