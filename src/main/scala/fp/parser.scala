@@ -29,12 +29,11 @@ object parserMain {
    
     val tweets = spark.read.json(tweetsJson)
     val users = spark.read.json(usersJson)
-    val colNames = Seq("_1", "_2", "_3", "_4", "_5")
+
 
     val df = tweets.as("S1").select("created_at", "text", "user_id")
     .join(users.select("id", "name").as("S2")).where($"S1.user_id" === $"S2.id")
-    val output = df.toDF(colNames:_*).drop("_4")
-
+    val output = df.drop("id")
     output.coalesce(1).write.csv("/mnt/d/data/total.csv")
     
   }
