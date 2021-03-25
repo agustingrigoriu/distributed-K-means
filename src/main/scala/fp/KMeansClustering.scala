@@ -10,8 +10,6 @@ import org.apache.spark.rdd.RDD
 
 object KMeansClusteringMain {
 
-
-
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: SparseVector) = {
     val commonIndices = vectorA.indices intersect vectorB.indices
@@ -24,7 +22,7 @@ object KMeansClusteringMain {
 
   def main(args: Array[String]) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    if (args.length != 1) {
+    if (args.length != 2) {
       logger.error("Usage:\n")
       System.exit(1)
     }
@@ -38,10 +36,7 @@ object KMeansClusteringMain {
     val sc = spark.sparkContext
 
     val inputDir: String = args(0)
-    //    val outputDir: String = args(2)
-    //    val k: Int = args(0).toInt;
-    //    val iterationsNumber: Int = args(1).toInt;
-
+    val outputDir: String = args(1)
 
     val schema = new StructType()
       .add("created_utc", LongType, nullable = false)
@@ -100,6 +95,9 @@ object KMeansClusteringMain {
 
     // Printing test example.
     testJoin.take(40).foreach(println)
+
+    testRDD.saveAsTextFile(outputDir)
+
 
   }
 }
