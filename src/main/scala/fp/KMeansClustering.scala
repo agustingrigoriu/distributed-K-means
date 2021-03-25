@@ -39,7 +39,7 @@ object KMeansClusteringMain {
     val outputDir: String = args(1)
 
     val schema = new StructType()
-      .add("created_utc", LongType, nullable = false)
+      .add("index", LongType, nullable = false)
       .add("title", StringType, true)
 
 
@@ -87,7 +87,7 @@ object KMeansClusteringMain {
 
     // Now we test that the similarity functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
     val testRDD: RDD[(Long, SparseVector)] = normalizedBagOfWords
-      .select("created_utc", "normalizedBagOfWords").rdd
+      .select("index", "normalizedBagOfWords").rdd
       .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
 
 
