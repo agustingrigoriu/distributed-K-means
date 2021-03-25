@@ -4,36 +4,26 @@ package fp
 import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
-
+import org.apache.spark.ml.feature.{CountVectorizer, Normalizer, RegexTokenizer, StopWordsRemover}
+import org.apache.spark.ml.linalg.SparseVector
+import org.apache.spark.rdd.RDD
 
 object KMeansClusteringMain {
 
 
-  def parseToBOW(text: String): Map[String, Int] = {
-    val splitText = text.split("\\s")
-    val wordsCount = splitText.map(word => (word, 1))
-    val bow = wordsCount.groupBy(_._1).mapValues(_.map(_._2).sum)
+  def cosineSimilarity(vectorA: SparseVector, vectorB: SparseVector) = {
+    val commonIndices = vectorA.indices intersect vectorB.indices
 
-    bow
-  }
+    // Calculating the sum of Xi * Yi.
+    val productsSum = commonIndices.map(x => vectorA(x) * vectorB(x)).reduceOption(_+_)
 
-  def calculateCosineSimilarity(m1: Map[String, Int], m2: Map[String, Int]): Double = {
+    // Calculating norm of each vector. SQRT(SUM(Xi^2)).
+    val vecNorm = math.sqrt(vectorA.indices.map(i => math.pow(vectorA(i), 2)).sum)
+    val vecOtherNorm = math.sqrt(vectorB.indices.map(i => math.pow(vectorB(i), 2)).sum)
 
-    var dotProduct: Double = 0.0
+    val cosineSim = productsSum.getOrElse(0.0) / (vecNorm * vecOtherNorm)
 
-    m1.keys.foreach(word => {
-      if (m2.contains(word)) dotProduct += (m1.getOrElse(word, 0.0) * m2.getOrElse(word, 0.0))
-    })
-
-    val m1SumOfSquares = m1.values.map(freq => math.pow(freq, 2)).sum
-    val m2SumOfSquares = m2.values.map(freq => math.pow(freq, 2)).sum
-
-    val m1Norm = math.sqrt(m1SumOfSquares)
-    val m2Norm = math.sqrt(m2SumOfSquares)
-
-    val cosineSimilarity = dotProduct / (m1Norm * m2Norm)
-
-    cosineSimilarity
+    cosineSim
   }
 
   def main(args: Array[String]) {
@@ -61,36 +51,54 @@ object KMeansClusteringMain {
       .add("created_utc", LongType, nullable = false)
       .add("title", StringType, true)
 
-    //read all files from a folder
-    val df = spark.read.schema(schema).json(inputDir)
-    df.show(true)
 
-    val bagOfWords = df.rdd
-      .filter(row => !row.isNullAt(1))
-      .map(row => (row.getLong(0), row.getString(1)))
-      .mapValues(title => parseToBOW(title))
+    //Reading all CSV from input dir. Notice that we are removing NA rows.
+    val inputDF = spark.read.schema(schema).csv(inputDir).na.drop()
+
+    inputDF.show(true)
 
 
-    val selfCos = bagOfWords.join(bagOfWords).mapValues(maps => calculateCosineSimilarity(maps._1, maps._2))
-    val collection = selfCos.collect()
-    print(collection)
-//    val sim2 = calculateCosineSimilarity(bagOfWords.first()._2, ba._2)
+    //Tokenizing the text in the title column.
+    val regexTokenizer = new RegexTokenizer()
+      .setInputCol("title")
+      .setOutputCol("tokens")
+      .setPattern("\\W")
+
+    val tokenizedDF = regexTokenizer.transform(inputDF)
+
+    tokenizedDF.show(true)
+
+    //Removing stop words from the tokenized arrays of words.
+    val stopWordsRemover = new StopWordsRemover()
+      .setInputCol("tokens")
+      .setOutputCol("filteredTokens")
+
+    val removedStopWords = stopWordsRemover.transform(tokenizedDF)
+
+    removedStopWords.show(true)
 
 
-    //    .filter(x => x.Document)
-    //    .map( x => x.Document.replace(',',' ').replace('.',' ').replace('-',' ').lower())\
-    //      .flatMap(lambda x: x.split())\
-    //      .map(lambda x: (x, 1))
-    //    bow0.reduceByKey(lambda x,y:x+y).take(50)
-    //     Delete output directory.
-    //    val hadoopConf = new org.apache.hadoop.conf.Configuration
-    //    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    //    try {
-    //      hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
-    //    } catch {
-    //      case _: Throwable => {}
-    //    }
+    //Parsing each list of words to a CountVectorizer object or "Bag of Words".
+    val countVectorizer = new CountVectorizer()
+      .setInputCol("filteredTokens")
+      .setOutputCol("bagOfWords")
+      .fit(removedStopWords)
 
+    val bagOfWords = countVectorizer.transform(removedStopWords)
+
+    bagOfWords.show(true)
+
+
+    // Now we test that the similariy functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
+    val testRDD: RDD[(Long, SparseVector)] = bagOfWords
+      .select("created_utc", "bagOfWords").rdd
+      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
+
+
+    val testJoin = testRDD.join(testRDD).mapValues(arr => cosineSimilarity(arr._1, arr._2))
+
+    // Printing test example.
+    testJoin.take(40).foreach(println)
 
   }
 }
