@@ -91,6 +91,9 @@ object KMeansClusteringMain {
       System.exit(1)
     }
 
+    val inputDir: String = args(0)
+    val outputDir: String = args(1)
+
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
       .config("spark.yarn.executor.memoryOverhead", 1024)
@@ -99,8 +102,13 @@ object KMeansClusteringMain {
 
     val sc = spark.sparkContext
 
-    val inputDir: String = args(0)
-    val outputDir: String = args(1)
+    val hadoopConf = new org.apache.hadoop.conf.Configuration
+    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    try {
+      hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
+    } catch {
+      case _: Throwable => {}
+    }
 
     val schema = new StructType()
       .add("index", LongType, nullable = false)
