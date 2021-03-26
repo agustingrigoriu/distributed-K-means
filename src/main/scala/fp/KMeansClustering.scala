@@ -1,6 +1,7 @@
 package fp
 
 
+import breeze.linalg.Axis._1
 import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
@@ -8,7 +9,22 @@ import org.apache.spark.ml.feature.{CountVectorizer, Normalizer, RegexTokenizer,
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
 
+import scala.collection.immutable.ListMap
+import scala.collection.mutable.Map
+
 object KMeansClusteringMain {
+
+
+  def merge(xs: Array[Int], ys: Array[Int]): Array[Int] = {
+    (xs, ys) match {
+      case (Array(), Array()) => Array.empty
+      case (Array(), ys2) => ys2
+      case (xs2, Array()) => xs2
+      case (xs1@Array(x, _*), ys1@Array(y, _*)) =>
+        if (x < y) x +: merge(xs1.tail, ys)
+        else y +: merge(xs, ys1.tail)
+    }
+  }
 
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: SparseVector) = {
@@ -20,33 +36,34 @@ object KMeansClusteringMain {
     productsSum.getOrElse(0.0)
   }
 
+
   def recalculateCentroid(clusteredVectors: Iterable[SparseVector]): SparseVector = {
 
-    var avgVector: SparseVector = null
-    val vectorSize: Double = if (clusteredVectors.size == 0) 1 else clusteredVectors.size.toDouble
+    val indices: Array[Int] = Array.empty[Int]
+    val values: Array[Double] = Array.empty[Double]
+    var auxMap: Map[Int, Double] = Map()
+    var clusterSize: Int = 0
 
     clusteredVectors.foreach(vector => {
 
-      if (avgVector == null) {
-        avgVector = vector
-      } else {
-        val newIndices = (avgVector.indices union vector.indices).distinct
-        scala.util.Sorting.quickSort(newIndices)
-        val newValues = newIndices.map(i => {
-
-          val value1 = if (avgVector.indices.contains(i)) avgVector(i) else 0.0
-          val value2 = if (vector.indices.contains(i)) vector(i) else 0.0
-
-          value1 + value2
-        })
-
-        avgVector = new SparseVector(vector.size, newIndices, newValues)
+      clusterSize = vector.size
+      for (idx <- vector.indices) {
+        if (auxMap.contains(idx)) {
+          auxMap(idx) = auxMap(idx) + vector(idx)
+        } else {
+          auxMap(idx) = vector(idx)
+        }
       }
-
     })
 
-    val averagedValues = avgVector.values.map(value => value / vectorSize)
-    new SparseVector(avgVector.size, avgVector.indices, averagedValues)
+
+    for (entry <- ListMap(auxMap.toSeq.sortBy(_._1): _*)) {
+      indices :+ entry._1
+      values :+ entry._2 / clusterSize.toDouble
+    }
+
+    //    val averagedValues = values.map(value => value / clusterSize)
+    new SparseVector(clusterSize, indices, values)
 
   }
 
