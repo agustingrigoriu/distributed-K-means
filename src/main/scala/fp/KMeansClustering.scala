@@ -10,7 +10,7 @@ import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable.Map
+import scala.collection.mutable.{ArrayBuffer, Map}
 
 object KMeansClusteringMain {
 
@@ -39,8 +39,8 @@ object KMeansClusteringMain {
 
   def recalculateCentroid(clusteredVectors: Iterable[SparseVector]): SparseVector = {
 
-    val indices: Array[Int] = Array.empty[Int]
-    val values: Array[Double] = Array.empty[Double]
+    var indices: ArrayBuffer[Int] = ArrayBuffer.empty[Int]
+    var values: ArrayBuffer[Double] = ArrayBuffer.empty[Double]
     var auxMap: Map[Int, Double] = Map()
     var clusterSize: Int = 0
 
@@ -58,12 +58,12 @@ object KMeansClusteringMain {
 
 
     for (entry <- ListMap(auxMap.toSeq.sortBy(_._1): _*)) {
-      indices :+ entry._1
-      values :+ entry._2 / clusterSize.toDouble
+      indices += entry._1
+      values += entry._2 / clusterSize.toDouble
     }
 
     //    val averagedValues = values.map(value => value / clusterSize)
-    new SparseVector(clusterSize, indices, values)
+    new SparseVector(clusterSize, indices.toArray, values.toArray)
 
   }
 
@@ -165,7 +165,7 @@ object KMeansClusteringMain {
 
 
     // Getting K random vectors to use as centroids.
-    val centroids = vectors.takeSample(false, 10).map(tuple => tuple._2).toSeq
+    val centroids = vectors.takeSample(false, 3).map(tuple => tuple._2).toSeq
 
 
     // Assigning vectors to clusters.
