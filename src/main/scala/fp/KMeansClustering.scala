@@ -42,11 +42,11 @@ object KMeansClusteringMain {
     var indices: ArrayBuffer[Int] = ArrayBuffer.empty[Int]
     var values: ArrayBuffer[Double] = ArrayBuffer.empty[Double]
     var auxMap: Map[Int, Double] = Map()
-    var clusterSize: Int = 0
-
+    var clusterSize: Int = clusteredVectors.size
+    var vectorSize: Int = 0
     clusteredVectors.foreach(vector => {
 
-      clusterSize = vector.size
+      vectorSize = vector.size
       for (idx <- vector.indices) {
         if (auxMap.contains(idx)) {
           auxMap(idx) = auxMap(idx) + vector(idx)
@@ -63,7 +63,7 @@ object KMeansClusteringMain {
     }
 
     //    val averagedValues = values.map(value => value / clusterSize)
-    new SparseVector(clusterSize, indices.toArray, values.toArray)
+    new SparseVector(vectorSize, indices.toArray, values.toArray)
 
   }
 
@@ -171,7 +171,6 @@ object KMeansClusteringMain {
     // Assigning vectors to clusters.
     val assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
     val newCentroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(groupedVectors._2))
-
     newCentroids.saveAsTextFile(outputDir)
     //    // Printing test example.
     //    testJoin.take(40).foreach(println)
