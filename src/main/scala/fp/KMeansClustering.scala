@@ -6,7 +6,7 @@ import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
 import org.apache.spark.ml.feature.{CountVectorizer, Normalizer, RegexTokenizer, StopWordsRemover}
-import org.apache.spark.ml.linalg.SparseVector
+import org.apache.spark.ml.linalg.{DenseVector, SparseVector}
 import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.ListMap
@@ -27,48 +27,35 @@ object KMeansClusteringMain {
   }
 
   // Since we receive normalized vectors, we just need to compute the dot product.
-  def cosineSimilarity(vectorA: SparseVector, vectorB: SparseVector) = {
-    val commonIndices = vectorA.indices intersect vectorB.indices
+  def cosineSimilarity(vectorA: SparseVector, vectorB: DenseVector) = {
 
     // Calculating the sum of Xi * Yi.
-    val productsSum = commonIndices.map(x => vectorA(x) * vectorB(x)).reduceOption(_ + _)
+    val productsSum = vectorA.indices.map(x => vectorA(x) * vectorB(x)).reduceOption(_ + _)
 
     productsSum.getOrElse(0.0)
   }
 
 
-  def recalculateCentroid(clusteredVectors: Iterable[SparseVector]): SparseVector = {
+  def recalculateCentroid(dimensionality: Int, clusteredVectors: Iterable[SparseVector]): DenseVector = {
 
-    var indices: ArrayBuffer[Int] = ArrayBuffer.empty[Int]
-    var values: ArrayBuffer[Double] = ArrayBuffer.empty[Double]
-    var auxMap: Map[Int, Double] = Map()
-    var clusterSize: Int = clusteredVectors.size
-    var vectorSize: Int = 0
+    val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality){0.0}
+    val clusterSize: Int = clusteredVectors.size
     clusteredVectors.foreach(vector => {
-
-      vectorSize = vector.size
       for (idx <- vector.indices) {
-        if (auxMap.contains(idx)) {
-          auxMap(idx) = auxMap(idx) + vector(idx)
-        } else {
-          auxMap(idx) = vector(idx)
-        }
+        values(idx) = values(idx) + vector(idx)
       }
     })
 
-
-    for (entry <- ListMap(auxMap.toSeq.sortBy(_._1): _*)) {
-      indices += entry._1
-      values += entry._2 / clusterSize.toDouble
+    for (i <- 0 to dimensionality - 1) {
+      values(i) = values(i) / clusterSize
     }
 
-    //    val averagedValues = values.map(value => value / clusterSize)
-    new SparseVector(vectorSize, indices.toArray, values.toArray)
+    new DenseVector(values = values.toArray)
 
   }
 
 
-  def getClosestCentroid(vector: SparseVector, centroids: Seq[SparseVector]): Long = {
+  def getClosestCentroid(vector: SparseVector, centroids: Seq[DenseVector]): Long = {
 
     var minDistance: Double = Double.MaxValue
     var closestCentroidIdx: Int = -1
@@ -165,12 +152,14 @@ object KMeansClusteringMain {
 
 
     // Getting K random vectors to use as centroids.
-    val centroids = vectors.takeSample(false, 3).map(tuple => tuple._2).toSeq
+    val centroids = vectors.takeSample(false, 3).map(tuple => tuple._2.toDense).toSeq
+
+    val dimensionality = centroids(0).size
 
 
     // Assigning vectors to clusters.
     val assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
-    val newCentroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(groupedVectors._2))
+    val newCentroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, groupedVectors._2))
     newCentroids.saveAsTextFile(outputDir)
     //    // Printing test example.
     //    testJoin.take(40).foreach(println)
