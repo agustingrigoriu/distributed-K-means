@@ -57,13 +57,13 @@ object KMeansClusteringMain {
 
   def getClosestCentroid(vector: SparseVector, centroids: Seq[DenseVector]): Long = {
 
-    var minDistance: Double = Double.MaxValue
+    var maxDistance: Double = Double.MinPositiveValue
     var closestCentroidIdx: Int = -1
     for (i <- 0 to centroids.length - 1) {
       val distance = cosineSimilarity(vector, centroids(i))
 
-      if (distance < minDistance) {
-        minDistance = distance
+      if (distance > maxDistance) {
+        maxDistance = distance
         closestCentroidIdx = i
       }
     }
@@ -152,15 +152,22 @@ object KMeansClusteringMain {
 
 
     // Getting K random vectors to use as centroids.
-    val centroids = vectors.takeSample(false, 3).map(tuple => tuple._2.toDense).toSeq
+    var centroids = vectors.takeSample(false, 3).map(tuple => tuple._2.toDense).toSeq
 
-    val dimensionality = centroids(0).size
+    var dimensionality = centroids(0).size
+    var assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
 
-
+    val iters = 3
+    // should be while loop until change is below epsilon
+    for (i <- 0 to iters)
+    {
+      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, groupedVectors._2)).collect().toSeq
+      dimensionality = centroids(0).size
+      assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
+    }
+    assignedVectors.saveAsTextFile(outputDir)
+    // newCentroids.saveAsTextFile(outputDir)
     // Assigning vectors to clusters.
-    val assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
-    val newCentroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, groupedVectors._2))
-    newCentroids.saveAsTextFile(outputDir)
     //    // Printing test example.
     //    testJoin.take(40).foreach(println)
     //
