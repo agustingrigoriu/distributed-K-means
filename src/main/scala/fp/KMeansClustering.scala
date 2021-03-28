@@ -14,17 +14,9 @@ import scala.collection.mutable.{ArrayBuffer, Map}
 
 object KMeansClusteringMain {
 
-
-  def merge(xs: Array[Int], ys: Array[Int]): Array[Int] = {
-    (xs, ys) match {
-      case (Array(), Array()) => Array.empty
-      case (Array(), ys2) => ys2
-      case (xs2, Array()) => xs2
-      case (xs1@Array(x, _*), ys1@Array(y, _*)) =>
-        if (x < y) x +: merge(xs1.tail, ys)
-        else y +: merge(xs, ys1.tail)
-    }
-  }
+  // this is super ugly, just testing idea
+  var notConverge: Boolean = true
+  var test: Int = 0
 
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: DenseVector) = {
@@ -36,20 +28,25 @@ object KMeansClusteringMain {
   }
 
 
-  def recalculateCentroid(dimensionality: Int, clusteredVectors: Iterable[SparseVector]): DenseVector = {
+  def recalculateCentroid(dimensionality: Int, oldVector: Seq[DenseVector], clusteredVectors: (Long, Iterable[SparseVector])): DenseVector = {
 
+    val clustered = clusteredVectors._2
     val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality){0.0}
-    val clusterSize: Int = clusteredVectors.size
-    clusteredVectors.foreach(vector => {
+    val clusterSize: Int = clustered.size
+    clustered.foreach(vector => {
       for (idx <- vector.indices) {
         values(idx) = values(idx) + vector(idx)
       }
     })
-
+    
     for (i <- 0 to dimensionality - 1) {
       values(i) = values(i) / clusterSize
+      if (values(i) != oldVector(test)(i)) {
+        notConverge = true
+      }
     }
-
+    
+    test = test + 1
     new DenseVector(values = values.toArray)
 
   }
@@ -147,7 +144,7 @@ object KMeansClusteringMain {
     // Now we test that the similarity functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
     val vectors: RDD[(Long, SparseVector)] = normalizedBagOfWords
       .select("index", "normalizedBagOfWords").rdd
-      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
+      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1))).cache()
     // Probably this should be cached.
 
 
@@ -157,13 +154,12 @@ object KMeansClusteringMain {
     var dimensionality = centroids(0).size
     var assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
 
-    val iters = 3
-    // should be while loop until change is below epsilon
-    for (i <- 0 to iters)
+    while (notConverge)
     {
-      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, groupedVectors._2)).collect().toSeq
-      dimensionality = centroids(0).size
+      notConverge = false
+      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, centroids, groupedVectors)).collect().toSeq
       assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
+      test = 0
     }
     assignedVectors.saveAsTextFile(outputDir)
     // newCentroids.saveAsTextFile(outputDir)
