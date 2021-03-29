@@ -25,13 +25,14 @@ object KMeansClusteringMain {
   }
 
 
-  def recalculateCentroid(dimensionality: Int, clusteredVectors: Iterable[SparseVector]): DenseVector = {
+  def recalculateCentroid(dimensionality: Int, clusteredVectors: Iterable[(Long, SparseVector)]): DenseVector = {
 
     val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality) {
       0.0
     }
     val clusterSize: Int = clusteredVectors.size
-    clusteredVectors.foreach(vector => {
+    clusteredVectors.foreach(vectorTuple => {
+      val vector = vectorTuple._2
       for (idx <- vector.indices) {
         values(idx) = values(idx) + vector(idx)
       }
@@ -66,10 +67,13 @@ object KMeansClusteringMain {
     closestCentroidId
   }
 
-  def calculateSumOfSquareErrors(clusteredVectors: Iterable[SparseVector], centroid: DenseVector): Double = {
+  def calculateSumOfSquareErrors(clusteredVectors: Iterable[(Long, SparseVector)], centroid: DenseVector): Double = {
 
     var sse: Double = 0.0
-    clusteredVectors.foreach(vector => {
+    clusteredVectors.foreach(vectorTuple => {
+
+      val vector = vectorTuple._2
+
       for (idx <- vector.indices) {
         val difference = vector(idx) - centroid(idx)
         val squareError = math.pow(difference, 2)
@@ -108,7 +112,7 @@ object KMeansClusteringMain {
 
     val schema = new StructType()
       .add("index", LongType, nullable = false)
-      .add("title", StringType, true)
+      .add("tweet", StringType, true)
 
 
     //Reading all CSV from input dir. Notice that we are removing NA rows.
@@ -119,7 +123,7 @@ object KMeansClusteringMain {
 
     //Tokenizing the text in the title column.
     val regexTokenizer = new RegexTokenizer()
-      .setInputCol("title")
+      .setInputCol("tweet")
       .setOutputCol("tokens")
       .setPattern("\\W")
 
@@ -153,41 +157,45 @@ object KMeansClusteringMain {
 
     val normalizedBagOfWords = normalizer.transform(bagOfWords)
 
-    val vectors: RDD[(Long, SparseVector)] = normalizedBagOfWords
-      .select("index", "normalizedBagOfWords").rdd
-      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
+    val data = normalizedBagOfWords
+      .select("index", "tweet", "normalizedBagOfWords").rdd
+
+    val tweets = data.map(row => (row.getAs[Long](0), row.getAs[String](1)))
+    val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](2)))
       .cache()
 
 
     // Getting K random vectors to use as centroids.
     var centroids = vectors
-      .takeSample(false, 3)
+      .takeSample(false, 20)
       .zipWithIndex
       .map {
         case ((_, vector), index) => (index, vector.toDense)
       }
       .toSeq
 
-    var dimensions = centroids(0)._2.size
+    val dimensions = centroids(0)._2.size
 
-    var clusteredVectors = sc.emptyRDD[(Int, Iterable[SparseVector])]
+    var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
 
     var SSE = -1
     val epsilon: Double = 0.001
 
 
     breakable {
-      for (i <- 0 to 10) {
+      for (i <- 0 to 20) {
 
-        clusteredVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2)).groupByKey()
+        labeledVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector))
 
-        val centroidsRDD = clusteredVectors.mapValues(groupedVectors => recalculateCentroid(dimensions, groupedVectors))
+        val groupedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector)).groupByKey()
+
+        val centroidsRDD = groupedVectors.mapValues(groupedVectors => recalculateCentroid(dimensions, groupedVectors))
 
         centroids = centroidsRDD
           .collect()
           .toSeq
 
-        val newSSE = clusteredVectors.join(centroidsRDD)
+        val newSSE = groupedVectors.join(centroidsRDD)
           .mapValues {
             case (clusteredVectors, centroid) => calculateSumOfSquareErrors(clusteredVectors, centroid)
           }
@@ -201,7 +209,10 @@ object KMeansClusteringMain {
       }
     }
 
-    clusteredVectors.saveAsTextFile(outputDir)
+    val labeledTweets = labeledVectors.map {
+      case (label, (id, vector)) => (id, label)
+    }.join(tweets)
+    labeledTweets.saveAsTextFile(outputDir)
     // newCentroids.saveAsTextFile(outputDir)
     // Assigning vectors to clusters.
     //    // Printing test example.
