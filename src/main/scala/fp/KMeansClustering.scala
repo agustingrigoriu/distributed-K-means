@@ -31,21 +31,23 @@ object KMeansClusteringMain {
   def recalculateCentroid(dimensionality: Int, oldVector: Seq[DenseVector], clusteredVectors: (Long, Iterable[SparseVector])): DenseVector = {
 
     val clustered = clusteredVectors._2
-    val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality){0.0}
+    val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality) {
+      0.0
+    }
     val clusterSize: Int = clustered.size
     clustered.foreach(vector => {
       for (idx <- vector.indices) {
         values(idx) = values(idx) + vector(idx)
       }
     })
-    
+
     for (i <- 0 to dimensionality - 1) {
       values(i) = values(i) / clusterSize
       if (values(i) != oldVector(test)(i)) {
         notConverge = true
       }
     }
-    
+
     test = test + 1
     new DenseVector(values = values.toArray)
 
@@ -66,6 +68,20 @@ object KMeansClusteringMain {
     }
 
     closestCentroidIdx
+  }
+
+  def calculateSumOfSquareErrors(clusteredVectors: Iterable[SparseVector], centroid: DenseVector): Double = {
+
+    var sse : Double = 0.0
+    clusteredVectors.foreach(vector => {
+      for (idx <- vector.indices) {
+        val difference = vector(idx) - centroid(idx)
+        val squareError = math.pow(difference, 2)
+        sse = sse + squareError
+      }
+    })
+
+    sse
   }
 
   def main(args: Array[String]) {
@@ -154,11 +170,11 @@ object KMeansClusteringMain {
     var dimensionality = centroids(0).size
     var assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
 
-    while (notConverge)
-    {
+    while (notConverge) {
       notConverge = false
-      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, centroids, groupedVectors)).collect().toSeq
       assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
+
+      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, centroids, groupedVectors)).collect().toSeq
       test = 0
     }
     assignedVectors.saveAsTextFile(outputDir)
