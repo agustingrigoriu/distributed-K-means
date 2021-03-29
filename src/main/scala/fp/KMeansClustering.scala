@@ -178,12 +178,12 @@ object KMeansClusteringMain {
 
     var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
 
-    var SSE = -1
+    var SSE: Double = -1
     val epsilon: Double = 0.001
 
 
     breakable {
-      for (i <- 0 to 20) {
+      for (i <- 0 to 1000) {
 
         labeledVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector))
 
@@ -205,7 +205,7 @@ object KMeansClusteringMain {
         if (SSE - newSSE <= epsilon) {
           break
         }
-
+        SSE = newSSE
       }
     }
 
