@@ -11,12 +11,9 @@ import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringMain {
-
-  // this is super ugly, just testing idea
-  var notConverge: Boolean = true
-  var test: Int = 0
 
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: DenseVector) = {
@@ -28,14 +25,13 @@ object KMeansClusteringMain {
   }
 
 
-  def recalculateCentroid(dimensionality: Int, oldVector: Seq[DenseVector], clusteredVectors: (Long, Iterable[SparseVector])): DenseVector = {
+  def recalculateCentroid(dimensionality: Int, clusteredVectors: Iterable[SparseVector]): DenseVector = {
 
-    val clustered = clusteredVectors._2
     val values: ArrayBuffer[Double] = ArrayBuffer.fill(dimensionality) {
       0.0
     }
-    val clusterSize: Int = clustered.size
-    clustered.foreach(vector => {
+    val clusterSize: Int = clusteredVectors.size
+    clusteredVectors.foreach(vector => {
       for (idx <- vector.indices) {
         values(idx) = values(idx) + vector(idx)
       }
@@ -43,36 +39,36 @@ object KMeansClusteringMain {
 
     for (i <- 0 to dimensionality - 1) {
       values(i) = values(i) / clusterSize
-      if (values(i) != oldVector(test)(i)) {
-        notConverge = true
-      }
     }
 
-    test = test + 1
     new DenseVector(values = values.toArray)
 
   }
 
 
-  def getClosestCentroid(vector: SparseVector, centroids: Seq[DenseVector]): Long = {
+  def getClosestCentroid(vector: SparseVector, centroids: Seq[(Int, DenseVector)]): Int = {
 
     var maxDistance: Double = Double.MinPositiveValue
-    var closestCentroidIdx: Int = -1
-    for (i <- 0 to centroids.length - 1) {
-      val distance = cosineSimilarity(vector, centroids(i))
+    var closestCentroidId: Int = -1
+    for (centroid <- centroids) {
+
+      val centroidId = centroid._1
+      val centroidVector = centroid._2
+
+      val distance = cosineSimilarity(vector, centroidVector)
 
       if (distance > maxDistance) {
         maxDistance = distance
-        closestCentroidIdx = i
+        closestCentroidId = centroidId
       }
     }
 
-    closestCentroidIdx
+    closestCentroidId
   }
 
   def calculateSumOfSquareErrors(clusteredVectors: Iterable[SparseVector], centroid: DenseVector): Double = {
 
-    var sse : Double = 0.0
+    var sse: Double = 0.0
     clusteredVectors.foreach(vector => {
       for (idx <- vector.indices) {
         val difference = vector(idx) - centroid(idx)
@@ -157,27 +153,55 @@ object KMeansClusteringMain {
 
     val normalizedBagOfWords = normalizer.transform(bagOfWords)
 
-    // Now we test that the similarity functions are working by self joining the table. Each row should have a 1.0 (approx) score since the are identical.
     val vectors: RDD[(Long, SparseVector)] = normalizedBagOfWords
       .select("index", "normalizedBagOfWords").rdd
-      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1))).cache()
-    // Probably this should be cached.
+      .map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
+      .cache()
 
 
     // Getting K random vectors to use as centroids.
-    var centroids = vectors.takeSample(false, 3).map(tuple => tuple._2.toDense).toSeq
+    var centroids = vectors
+      .takeSample(false, 3)
+      .zipWithIndex
+      .map {
+        case ((_, vector), index) => (index, vector.toDense)
+      }
+      .toSeq
 
-    var dimensionality = centroids(0).size
-    var assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
+    var dimensions = centroids(0)._2.size
 
-    while (notConverge) {
-      notConverge = false
-      assignedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2))
+    var clusteredVectors = sc.emptyRDD[(Int, Iterable[SparseVector])]
 
-      centroids = assignedVectors.groupByKey().map(groupedVectors => recalculateCentroid(dimensionality, centroids, groupedVectors)).collect().toSeq
-      test = 0
+    var SSE = -1
+    val epsilon: Double = 0.001
+
+
+    breakable {
+      for (i <- 0 to 10) {
+
+        clusteredVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector._2)).groupByKey()
+
+        val centroidsRDD = clusteredVectors.mapValues(groupedVectors => recalculateCentroid(dimensions, groupedVectors))
+
+        centroids = centroidsRDD
+          .collect()
+          .toSeq
+
+        val newSSE = clusteredVectors.join(centroidsRDD)
+          .mapValues {
+            case (clusteredVectors, centroid) => calculateSumOfSquareErrors(clusteredVectors, centroid)
+          }
+          .values
+          .sum()
+
+        if (SSE - newSSE <= epsilon) {
+          break
+        }
+
+      }
     }
-    assignedVectors.saveAsTextFile(outputDir)
+
+    clusteredVectors.saveAsTextFile(outputDir)
     // newCentroids.saveAsTextFile(outputDir)
     // Assigning vectors to clusters.
     //    // Printing test example.
