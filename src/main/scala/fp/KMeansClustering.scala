@@ -86,13 +86,15 @@ object KMeansClusteringMain {
 
   def main(args: Array[String]) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    if (args.length != 2) {
+    if (args.length != 4) {
       logger.error("Usage:\n")
       System.exit(1)
     }
 
     val inputDir: String = args(0)
     val outputDir: String = args(1)
+    val K: Int = args(2).toInt
+    val I: Int = args(3).toInt
 
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
@@ -123,9 +125,11 @@ object KMeansClusteringMain {
 
     //Tokenizing the text in the title column.
     val regexTokenizer = new RegexTokenizer()
+      //      .setGaps(false)
+      //      .setPattern("#(\\w+)")
       .setInputCol("tweet")
       .setOutputCol("tokens")
-      .setPattern("\\W")
+      .setPattern("#(\\\\w+)")
 
     val tokenizedDF = regexTokenizer.transform(inputDF)
 
@@ -151,6 +155,8 @@ object KMeansClusteringMain {
 
     bagOfWords.show(true)
 
+
+    // Normalizing our vectors so we can make the cosine similarity calculation more straightforward.
     val normalizer = new Normalizer()
       .setInputCol("bagOfWords")
       .setOutputCol("normalizedBagOfWords")
@@ -160,65 +166,95 @@ object KMeansClusteringMain {
     val data = normalizedBagOfWords
       .select("index", "tweet", "normalizedBagOfWords").rdd
 
-    val tweets = data.map(row => (row.getAs[Long](0), row.getAs[String](1)))
+
+    // K-MEANS ALGORITHM VERSION 1.
+
+
+    // We keep two RDDs in memory, One with every (ID, TEXT), and another one with (ID, VECTOR).
+    val textData = data.map(row => (row.getAs[Long](0), row.getAs[String](1))).cache()
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](2)))
       .cache()
 
-
-    // Getting K random vectors to use as centroids.
+    // Getting K random vectors to use as centroids. And parsing them to DenseVectors.
+    // Resulting tuple is (centroidId, centroid)
     var centroids = vectors
-      .takeSample(false, 20)
+      .takeSample(false, K)
       .zipWithIndex
       .map {
         case ((_, vector), index) => (index, vector.toDense)
       }
       .toSeq
 
+
+    // I keep in memory the dimension of a vector.
     val dimensions = centroids(0)._2.size
 
+    // Initializing an RDD that will hold every vector with its cluster assignment.
+    // (centroidId, (vectorId, vector))
     var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
 
-    var SSE: Double = -1
+
+    var SSE: Double = Double.NegativeInfinity
     val epsilon: Double = 0.001
 
-
     breakable {
-      for (i <- 0 to 1000) {
+      for (_ <- 0 to I) {
 
-        labeledVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector))
+        // We assign a vector to the closest centroid.
+        labeledVectors = vectors.map {
+          case (vectorId, vector) => (getClosestCentroid(vector, centroids), (vectorId, vector))
+        }
 
-        val groupedVectors = vectors.map(vector => (getClosestCentroid(vector._2, centroids), vector)).groupByKey()
+        // We group the vectors by the assignment label and we recalculate the centroids for each cluster.
+        val clusters = labeledVectors
+          .groupByKey()
+          .map {
+            case (centroidId, clusteredVectors) => {
+              val newCentroid = recalculateCentroid(dimensions, clusteredVectors)
 
-        val centroidsRDD = groupedVectors.mapValues(groupedVectors => recalculateCentroid(dimensions, groupedVectors))
+              (centroidId, (clusteredVectors, newCentroid))
+            }
+          }
 
-        centroids = centroidsRDD
+        // This centroids are updated in the global variable.
+        centroids = clusters
+          .map {
+            case (centroidId, (_, centroid)) => (centroidId, centroid)
+          }
           .collect()
           .toSeq
 
-        val newSSE = groupedVectors.join(centroidsRDD)
+
+        // We calculate the SSE for each centroid. Then we sum all this values across every cluster.
+        val newSSE = clusters
           .mapValues {
             case (clusteredVectors, centroid) => calculateSumOfSquareErrors(clusteredVectors, centroid)
           }
           .values
           .sum()
 
+
+        // We check how much the SSE changed w.r.t the previous iteration. If the change is below epsilon, we stop.
         if (SSE - newSSE <= epsilon) {
           break
         }
+
+        // Setting the new SSE.
         SSE = newSSE
       }
     }
 
-    val labeledTweets = labeledVectors.map {
-      case (label, (id, vector)) => (id, label)
-    }.join(tweets)
+
+    // Now we join the labeled Vectors with textData for visualization and testing purposes.
+    val labeledTweets = labeledVectors
+      .map {
+        case (label, (id, _)) => (id, label)
+      }
+      .sortBy(tuple => tuple._2)
+      .join(textData)
+
+
     labeledTweets.saveAsTextFile(outputDir)
-    // newCentroids.saveAsTextFile(outputDir)
-    // Assigning vectors to clusters.
-    //    // Printing test example.
-    //    testJoin.take(40).foreach(println)
-    //
-    //    testRDD.saveAsTextFile(outputDir)
 
 
   }
