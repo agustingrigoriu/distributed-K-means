@@ -24,7 +24,7 @@ object PreprocessingMain {
     val inputDir: String = args(0)
     val outputDir: String = args(1)
 
-    val spark = SparkSession.builder.appName("KMeansClusteringPreProcessing")
+    val spark = SparkSession.builder.appName("KMeansClustering-PreProcessing")
     .config("spark.driver.memoryOverhead", 1024)
     .config("spark.yarn.executor.memoryOverhead", 1024)
     .master("local[*]")
