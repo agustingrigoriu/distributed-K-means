@@ -63,8 +63,7 @@ object  PostProcessingMain {
     .reduceByKey(_+_)
     val n = 20
     // topByKey not working as expected, i think maybe because values are in array, so it thinks theres only 1 value?
-    val output = filteredWords.map(input => (input._1._1, (input._1._2, input._2))).sortBy(_._2._2 * -1).groupByKey().topByKey(n)
-    val test = output.mapValues(x=>x(0)).map(y=>(y._1,y._2.toList))
+    val output = filteredWords.map(input => (input._1._1, (input._2, input._1._2))).sortBy(_._2._2).topByKey(n)
     test.saveAsTextFile(outputDir)
 
     

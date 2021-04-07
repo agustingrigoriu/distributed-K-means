@@ -5,6 +5,7 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import org.apache.spark.ml.feature.{StopWordsRemover}
+import scala.util.control.Breaks.{break, breakable}
 
 object Utils {
 
@@ -88,6 +89,21 @@ object Utils {
     }
     val res = ListMap(textDict.toSeq.sortBy(_._2):_*).take(K)
     res
+  }
+
+    def getTopKWords1(words: Iterable[(String, Int)], K: Int): List[(String, Int)] = {
+    val res = new ArrayBuffer[(String, Int)]()
+    var count = 0
+    breakable{
+      for (word <- words) {
+        res += (word)
+      }
+      count += 1
+      if (count > K) {
+        break
+      }
+    }
+    res.toList
   }
 
 }
