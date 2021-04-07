@@ -5,6 +5,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
 import org.apache.spark.ml.feature.{StopWordsRemover}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions.fromPairRDD
+import scala.collection.mutable.ArrayBuffer
+
 object  PostProcessingMain {
 
   def main(args: Array[String]) {
@@ -49,22 +51,27 @@ object  PostProcessingMain {
     val tweets = spark.read.schema(schema1).csv(tweetsDir).na.drop()
 
     val joined = inputDF.join(tweets, "index").rdd
-    val hi = new StopWordsRemover()
-    val testWords = hi.getStopWords
+    // stop words
+    val stop = new StopWordsRemover()
+    val testWords = stop.getStopWords
+    val addWords = List(",", "", "-", "&", "rt", "&amp;")
+    val allWords = addWords ++ testWords
 
     val clusters = joined.map(row => (row.getAs[Long](1),row.getAs[String](2))).groupByKey()
     // val groupedClusters = clusters.mapValues(group => Utils.getTopKWords(group, 5))
     // groupedClusters.saveAsTextFile(outputDir)
-
     val filteredWords = clusters.flatMapValues(iter => iter)
     .flatMapValues(line => line.split(" "))
-    .filter(word => !testWords.contains(word._2))
+    .filter(word => !allWords.contains(word._2.toLowerCase()))
     .map(word=> (word,1))
     .reduceByKey(_+_)
     val n = 20
     // topByKey not working as expected, i think maybe because values are in array, so it thinks theres only 1 value?
-    val output = filteredWords.map(input => (input._1._1, (input._2, input._1._2))).sortBy(_._2._2).topByKey(n)
-    test.saveAsTextFile(outputDir)
+    val topK = filteredWords.map(input => (input._1._1, (input._2, input._1._2))).sortBy(_._2._2).topByKey(n)
+    import spark.implicits._
+    val output = topK.toDS()
+    output.coalesce(1).write.json(outputDir)
+    //output.saveAsTextFile(outputDir)
 
     
     // Group RDD by key => (clusterId, Iterable[(docId, doc)]
