@@ -96,9 +96,9 @@ object KMeansClusteringV2Main {
     }
 
     val inputDir: String = args(0)
-    val outputDir: String = args(1)
     val K: Int = args(2).toInt
     val I: Int = args(3).toInt
+    val outputDir: String = s"${args(1)}_$K"
 
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)

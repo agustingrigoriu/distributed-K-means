@@ -1,8 +1,10 @@
 package fp
 
 import org.apache.spark.ml.linalg.{DenseVector, SparseVector}
-
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
+import org.apache.spark.ml.feature.{StopWordsRemover}
 
 object Utils {
 
@@ -73,6 +75,19 @@ object Utils {
     })
 
     sse
+  }
+
+  def getTopKWords(words: Iterable[String], K: Int): ListMap[String, Int] = {
+    val hi = new StopWordsRemover()
+    val testWords = hi.getStopWords
+    var textDict = new HashMap[String, Int].withDefaultValue(0)
+    for (word <- words) {
+      if (!testWords.contains(word)) {
+        textDict(word) += 1
+      }
+    }
+    val res = ListMap(textDict.toSeq.sortBy(_._2):_*).take(K)
+    res
   }
 
 }
