@@ -14,12 +14,14 @@ import scala.util.control.Breaks.{break, breakable}
 object KMeansClusteringV2Main {
 
 
-  def runKMeans(sparkContext: SparkContext, broadcastVectors: Broadcast[RDD[(Long, SparseVector)]], K: Int, I: Int, outputDir: String) {
+  def runKMeans(sparkContext: SparkContext, broadcastVectors: Array[(Long, SparseVector)], K: Int, I: Int, outputDir: String) {
 
 
     val kMeansOutputDir = outputDir + File.separator + s"$K-Means"
 
-    val vectors = broadcastVectors.value
+    val vectors = sparkContext.parallelize(broadcastVectors)
+
+    vectors.take(5).foreach(println)
 
     var centroids = vectors
       .takeSample(false, K)
@@ -100,9 +102,9 @@ object KMeansClusteringV2Main {
     }
 
     val inputDir: String = args(0)
+    val outputDir: String = args(1)
     val K: Int = args(2).toInt
     val I: Int = args(3).toInt
-    val outputDir: String = s"${args(1)}_$K"
 
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
@@ -122,15 +124,18 @@ object KMeansClusteringV2Main {
 
     val data = spark.read.load(inputDir).rdd
 
-
+    data.take(5).foreach(println)
     //TODO: Rename file so it shows the K.
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
       .cache()
 
-    val broadcastVectors = sc.broadcast(vectors)
+    vectors.take(5).foreach(println)
+
+    val broadcastVectors = sc.broadcast(vectors.collect())
+
 
     for (k <- 1 to K) {
-      runKMeans(sc, broadcastVectors, k, I, outputDir)
+      runKMeans(sc, broadcastVectors.value, k, I, outputDir)
     }
 
   }

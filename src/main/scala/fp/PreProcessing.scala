@@ -57,7 +57,7 @@ object PreprocessingMain {
     //      .setPattern("#(\\w+)")
     .setInputCol("tweet")
     .setOutputCol("tokens")
-    .setPattern("#(\\\\w+)")
+    .setPattern("\\W")
 
     val tokenizedDF = regexTokenizer.transform(inputDF)
 

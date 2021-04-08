@@ -18,6 +18,6 @@ object Main {
     } else {
       fp.KMeansClusteringV2Main.main(Array(prepOutputDir, kMeansOutDir, K, iters))
     }
-    fp.PostProcessingMain.main(Array(kMeansOutDir, postOutputDir, prepInputDir, topKWords))
+    //fp.PostProcessingMain.main(Array(kMeansOutDir, postOutputDir, prepInputDir, topKWords))
   }
 }
