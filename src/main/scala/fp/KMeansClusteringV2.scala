@@ -3,20 +3,24 @@ package fp
 
 import org.apache.log4j.LogManager
 import org.apache.spark.SparkContext
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
 
+import scala.reflect.io.File
 import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringV2Main {
 
 
-  def runKMeans(sparkContext: SparkContext, vectors: RDD[(Long, SparseVector)], K: Int, I: Int, outputDir: String) {
-    // K-MEANS ALGORITHM VERSION 1.
+  def runKMeans(sparkContext: SparkContext, broadcastVectors: Broadcast[RDD[(Long, SparseVector)]], K: Int, I: Int, outputDir: String) {
 
-    // Getting K random vectors to use as centroids. And parsing them to DenseVectors.
-    // Resulting tuple is (centroidId, centroid)
+
+    val kMeansOutputDir = outputDir + File.separator + s"$K-Means"
+
+    val vectors = broadcastVectors.value
+
     var centroids = vectors
       .takeSample(false, K)
       .zipWithIndex
@@ -85,7 +89,7 @@ object KMeansClusteringV2Main {
 
     //TODO: Rename file so it shows the K.
     labeledVectors.map(x => (x._2._1, x._1))
-      .saveAsTextFile(outputDir)
+      .saveAsTextFile(kMeansOutputDir)
   }
 
   def main(args: Array[String]) {
@@ -123,10 +127,10 @@ object KMeansClusteringV2Main {
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
       .cache()
 
+    val broadcastVectors = sc.broadcast(vectors)
 
-    // Not sure this parallelize every run of KMeans. Just a sketch we need to work on.
     for (k <- 1 to K) {
-      runKMeans(sc, vectors, k, I, outputDir)
+      runKMeans(sc, broadcastVectors, k, I, outputDir)
     }
 
   }
