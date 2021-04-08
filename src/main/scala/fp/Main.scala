@@ -10,6 +10,7 @@ object Main {
     val iters: String = args(4)
     val version: Int = args(5).toInt
     val postOutputDir: String = args(6)
+    val topKWords: String = args(7)
 
     fp.PreprocessingMain.main(Array(prepInputDir, prepOutputDir))
     if (version == 1) {
@@ -17,6 +18,6 @@ object Main {
     } else {
       fp.KMeansClusteringV2Main.main(Array(prepOutputDir, kMeansOutDir, K, iters))
     }
-    fp.PostProcessingMain.main(Array(kMeansOutDir, postOutputDir, prepInputDir))
+    fp.PostProcessingMain.main(Array(kMeansOutDir, postOutputDir, prepInputDir, topKWords))
   }
 }

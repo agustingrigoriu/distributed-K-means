@@ -19,6 +19,7 @@ object PostProcessingMain {
     val inputDir: String = args(0)
     val outputDir: String = args(1)
     val tweetsDir: String = args(2)
+    val top: Int = args(3).toInt
 
     val spark = SparkSession.builder.appName("KMeansClustering-PostProcessing")
       .config("spark.driver.memoryOverhead", 1024)
@@ -65,9 +66,8 @@ object PostProcessingMain {
     .filter(word => !allWords.contains(word._2.toLowerCase()))
     .map(word=> (word,1))
     .reduceByKey(_+_)
-    val n = 20
     // topByKey not working as expected, i think maybe because values are in array, so it thinks theres only 1 value?
-    val topK = filteredWords.map(input => (input._1._1, (input._2, input._1._2))).sortBy(_._2._2).topByKey(n)
+    val topK = filteredWords.map(input => (input._1._1, (input._2, input._1._2))).sortBy(_._2._2).topByKey(top)
     import spark.implicits._
     val output = topK.toDS()
     output.coalesce(1).write.json(outputDir)
