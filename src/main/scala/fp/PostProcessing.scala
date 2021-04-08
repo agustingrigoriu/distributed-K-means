@@ -7,7 +7,7 @@ import org.apache.spark.ml.feature.{StopWordsRemover}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions.fromPairRDD
 import scala.collection.mutable.ArrayBuffer
 
-object  PostProcessingMain {
+object PostProcessingMain {
 
   def main(args: Array[String]) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
