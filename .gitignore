@@ -2,6 +2,7 @@
 *.log
 Makefile
 
+output/
 # Created by https://www.toptal.com/developers/gitignore/api/scala,intellij,maven
 # Edit at https://www.toptal.com/developers/gitignore?templates=scala,intellij,maven
 
