@@ -6,12 +6,13 @@ import org.apache.spark.sql.types.{LongType, StringType, StructType}
 import org.apache.spark.ml.feature.{StopWordsRemover}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions.fromPairRDD
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.io.File
 
 object PostProcessingMain {
 
   def main(args: Array[String]) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    if (args.length != 4) {
+    if (args.length != 5) {
       logger.error("Usage:\n")
       System.exit(1)
     }
@@ -20,6 +21,7 @@ object PostProcessingMain {
     val outputDir: String = args(1)
     val tweetsDir: String = args(2)
     val top: Int = args(3).toInt
+    val K: Int = args(4).toInt
 
     val spark = SparkSession.builder.appName("KMeansClustering-PostProcessing")
       .config("spark.driver.memoryOverhead", 1024)
@@ -43,7 +45,11 @@ object PostProcessingMain {
     .add("clusterID", LongType, nullable = false)
     .add("index", LongType, true)
 
-    val inputDF = spark.read.schema(schema).csv(inputDir).na.drop()
+    val kMeansOutputDir = inputDir + File.separator + s"$K-Means"
+
+    val inputDF = spark.read.schema(schema).csv(kMeansOutputDir).na.drop()
+
+    inputDF.show(true)
 
     val schema1 = new StructType()
     .add("index", LongType, nullable = false)

@@ -16,16 +16,14 @@ object Main {
     val topKWords: String = args(5)
 
     // Pre-Processing Step
-    fp.PreprocessingMain.main(Array(inputDir, preProcessingOutputDir))
+    // fp.PreprocessingMain.main(Array(inputDir, preProcessingOutputDir))
 
-    // KMeans Execution
-    if (version == 1) {
-      fp.KMeansClusteringMain.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
-      fp.PostProcessingMain.main(Array(kMeansOutputDir, postProcessingOutputDir, preProcessingOutputDir, topKWords))
-    } else {
-      fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
-    }
-
-
+    // // KMeans Execution
+    // if (version == 1) {
+    //   fp.KMeansClusteringMain.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
+    // } else {
+    //   fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
+    // }
+    fp.PostProcessingMain.main(Array(kMeansOutputDir, postProcessingOutputDir, inputDir, topKWords, K))
   }
 }

@@ -90,7 +90,7 @@ object KMeansClusteringV2Main {
     }
 
     //TODO: Rename file so it shows the K.
-    labeledVectors.map(x => (x._2._1, x._1))
+    labeledVectors.map(x=>s"${x._1},${x._2._1}")
       .saveAsTextFile(kMeansOutputDir)
   }
 
