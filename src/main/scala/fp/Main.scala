@@ -7,8 +7,9 @@ object Main {
 
     val inputDir: String = args(0)
     val outputDir: String = args(1)
-    val preProcessingOutputDir: String = outputDir + File.separator + "preprocessing"
+    val preProcessingOutputDir: String = outputDir + File.separator + "pre-processing"
     val kMeansOutputDir: String = outputDir + File.separator + "k-means"
+    val postProcessingOutputDir: String = outputDir + File.separator + "post-processing"
     val version: Int = args(2).toInt
     val K: String = args(3)
     val I: String = args(4)
@@ -20,11 +21,11 @@ object Main {
     // KMeans Execution
     if (version == 1) {
       fp.KMeansClusteringMain.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
+      fp.PostProcessingMain.main(Array(kMeansOutputDir, postProcessingOutputDir, preProcessingOutputDir, topKWords))
     } else {
       fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
     }
 
-    // Post-Processing Step
-    //fp.PostProcessingMain.main(Array(kMeansOutDir, postOutputDir, prepInputDir, topKWords))
+
   }
 }
