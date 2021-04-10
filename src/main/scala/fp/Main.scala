@@ -19,25 +19,25 @@ object Main {
     val topKWords: String = args(5)
 
     // Pre-Processing Step
-    // fp.PreprocessingMain.main(Array(inputDir, preProcessingOutputDir))
+    fp.PreprocessingMain.main(Array(inputDir, preProcessingOutputDir))
 
     // KMeans Execution
-    // if (version == 1) {
-    //   val output = fp.KMeansClusteringMain.runKMeans(preProcessingOutputDir, K, I)
-    //   val hadoopConf = new org.apache.hadoop.conf.Configuration
-    //   val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    //   try {
-    //     hdfs.delete(new org.apache.hadoop.fs.Path(kMeansOutputDir), true)
-    //     hdfs.delete(new org.apache.hadoop.fs.Path(kMeansSSEDir), true)
-    //   } catch {
-    //     case _: Throwable => {}
-    //   }
-    //   output._1.coalesce(1).saveAsTextFile(kMeansSSEDir)
-    //   output._2.saveAsTextFile(kMeansOutputDir)
+    if (version == 1) {
+      val output = fp.KMeansClusteringMain.runKMeans(preProcessingOutputDir, K, I)
+      val hadoopConf = new org.apache.hadoop.conf.Configuration
+      val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+      try {
+        hdfs.delete(new org.apache.hadoop.fs.Path(kMeansOutputDir), true)
+        hdfs.delete(new org.apache.hadoop.fs.Path(kMeansSSEDir), true)
+      } catch {
+        case _: Throwable => {}
+      }
+      output._1.coalesce(1).saveAsTextFile(kMeansSSEDir)
+      output._2.saveAsTextFile(kMeansOutputDir)
       
-    // } else {
-    //   fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
-    // }
+    } else {
+      fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDir, K, I))
+    }
     // Post-Processing Step
     fp.PostProcessingMain.main(Array(kMeansOutputDir, postProcessingOutputDir, inputDir, topKWords, K))
   }

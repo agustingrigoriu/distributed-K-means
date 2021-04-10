@@ -14,15 +14,6 @@ object KMeansClusteringMain {
 
   def runKMeans(inputDir: String, Ks: String, Is: String): (RDD[Double], RDD[String]) = {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-        // if (args.length != 4) {
-        //   logger.error("Usage:\n")
-        //   System.exit(1)
-        // }
-
-        // val inputDir: String = args(0)
-        // val outputDir: String = args(1)
-        // val K: Int = args(2).toInt
-        // val I: Int = args(3).toInt
         val K = Ks.toInt
         val I = Is.toInt
 
@@ -65,7 +56,6 @@ object KMeansClusteringMain {
           var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
       
           var SSE: Double = Double.MaxValue
-          //var diff = Double.MaxValue
           val epsilon: Double = 0.001
       
           breakable {
@@ -108,13 +98,11 @@ object KMeansClusteringMain {
               // We check how much the SSE changed w.r.t the previous iteration. If the change is below epsilon, we stop.
               if ((SSE - newSSE).abs <= epsilon) {
                 SSE = newSSE
-                // diff = newSSE
                 break
               }
       
               // Setting the new SSE.
 
-              //diff = newSSE
               SSE = newSSE
             }
           }
