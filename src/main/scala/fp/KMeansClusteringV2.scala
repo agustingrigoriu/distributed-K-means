@@ -21,8 +21,6 @@ object KMeansClusteringV2Main {
 
     val vectors = sparkContext.parallelize(broadcastVectors)
 
-    vectors.take(5).foreach(println)
-
     var centroids = vectors
       .takeSample(false, K)
       .zipWithIndex
@@ -124,12 +122,8 @@ object KMeansClusteringV2Main {
 
     val data = spark.read.load(inputDir).rdd
 
-    data.take(5).foreach(println)
-    //TODO: Rename file so it shows the K.
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
       .cache()
-
-    vectors.take(5).foreach(println)
 
     val broadcastVectors = sc.broadcast(vectors.collect())
 

@@ -3,10 +3,11 @@ package fp
 import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
-import org.apache.spark.ml.feature.{StopWordsRemover}
+import org.apache.spark.ml.feature.{StopWordsRemover, RegexTokenizer}
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions.fromPairRDD
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.File
+import scala.collection.mutable.WrappedArray
 
 object PostProcessingMain {
 
@@ -45,31 +46,46 @@ object PostProcessingMain {
     .add("clusterID", LongType, nullable = false)
     .add("index", LongType, true)
 
-    val kMeansOutputDir = inputDir + File.separator + s"$K-Means"
-
-    val inputDF = spark.read.schema(schema).csv(kMeansOutputDir).na.drop()
-
-    inputDF.show(true)
+    val inputDF = spark.read.schema(schema).csv(inputDir).na.drop()
 
     val schema1 = new StructType()
     .add("index", LongType, nullable = false)
     .add("tweet", StringType, true)
 
+    
     val tweets = spark.read.schema(schema1).csv(tweetsDir).na.drop()
 
-    val joined = inputDF.join(tweets, "index").rdd
-    // stop words
-    val stop = new StopWordsRemover()
-    val testWords = stop.getStopWords
-    val addWords = List(",", "", "-", "&", "rt", "&amp;")
-    val allWords = addWords ++ testWords
 
-    val clusters = joined.map(row => (row.getAs[Long](1),row.getAs[String](2))).groupByKey()
+    //Tokenizing the text in the title column.
+    val regexTokenizer = new RegexTokenizer()
+    //      .setGaps(false)
+    //      .setPattern("#(\\w+)")
+    .setInputCol("tweet")
+    .setOutputCol("tokens")
+    .setPattern("\\W")
+
+    val tokenizedDF = regexTokenizer.transform(tweets)
+
+    //Removing stop words from the tokenized arrays of words.
+    val stopWordsRemover = new StopWordsRemover()
+    .setInputCol("tokens")
+    .setOutputCol("filteredTokens")
+
+
+    val testWords = stopWordsRemover.getStopWords
+    val addWords = List(",", "", "-", "&", "rt", "amp")
+    val allWords = addWords ++ testWords
+    stopWordsRemover.setStopWords(allWords.toArray)
+
+    val removedStopWords = stopWordsRemover.transform(tokenizedDF)
+
+    val joined = inputDF.join(removedStopWords, "index").drop("tweet", "tokens").rdd
+
+    val clusters = joined.map(row => (row.getAs[Long](1),row.getAs[WrappedArray[String]](2))).groupByKey()
     // val groupedClusters = clusters.mapValues(group => Utils.getTopKWords(group, 5))
     // groupedClusters.saveAsTextFile(outputDir)
     val filteredWords = clusters.flatMapValues(iter => iter)
-    .flatMapValues(line => line.split(" "))
-    .filter(word => !allWords.contains(word._2.toLowerCase()))
+    .flatMapValues(line => line)
     .map(word=> (word,1))
     .reduceByKey(_+_)
     // topByKey not working as expected, i think maybe because values are in array, so it thinks theres only 1 value?
