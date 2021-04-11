@@ -25,13 +25,13 @@ object Main {
 
 
     // Remove output dir entirely.
-    val hadoopConf = new org.apache.hadoop.conf.Configuration
-    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    try {
-      hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
-    } catch {
-      case _: Throwable => {}
-    }
+    // val hadoopConf = new org.apache.hadoop.conf.Configuration
+    // val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+    // try {
+    //   hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
+    // } catch {
+    //   case _: Throwable => {}
+    // }
 
 
     logger.info(s"Pre-processing data.")

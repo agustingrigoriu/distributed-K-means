@@ -94,7 +94,7 @@ object KMeansClusteringV2 {
       .config("spark.driver.memoryOverhead", 1024)
       .config("spark.yarn.executor.memoryOverhead", 1024)
       .config("spark.executor.cores", 1)
-      .master("local[*]")
+      // .master("local[*]")
       .getOrCreate()
 
     val sc = spark.sparkContext

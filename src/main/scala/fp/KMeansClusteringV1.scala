@@ -21,7 +21,7 @@ object KMeansClusteringV1 {
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
       .config("spark.yarn.executor.memoryOverhead", 1024)
-      .master("local[*]")
+      // .master("local[*]")
       .getOrCreate()
 
     val sc = spark.sparkContext

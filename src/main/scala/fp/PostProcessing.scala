@@ -17,7 +17,7 @@ object PostProcessing {
     val spark = SparkSession.builder.appName("KMeansClustering-PostProcessing")
       .config("spark.driver.memoryOverhead", 1024)
       .config("spark.yarn.executor.memoryOverhead", 1024)
-      .master("local[*]")
+      // .master("local[*]")
       .getOrCreate()
 
     val sc = spark.sparkContext

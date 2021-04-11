@@ -20,7 +20,7 @@ object PreProcessing {
     val spark = SparkSession.builder.appName("KMeansClustering-PreProcessing")
     .config("spark.driver.memoryOverhead", 1024)
     .config("spark.yarn.executor.memoryOverhead", 1024)
-    .master("local[*]")
+    // .master("local[*]")
     .getOrCreate()
 
     val sc = spark.sparkContext
@@ -33,9 +33,6 @@ object PreProcessing {
     //Reading all CSV from input dir. Notice that we are removing NA rows.
     val inputDF = spark.read.schema(schema).csv(inputDir).na.drop()
 
-    inputDF.show(true)
-
-
     //Tokenizing the text in the title column.
     val regexTokenizer = new RegexTokenizer()
     //      .setGaps(false)
@@ -46,17 +43,12 @@ object PreProcessing {
 
     val tokenizedDF = regexTokenizer.transform(inputDF)
 
-    tokenizedDF.show(true)
-
     //Removing stop words from the tokenized arrays of words.
     val stopWordsRemover = new StopWordsRemover()
     .setInputCol("tokens")
     .setOutputCol("filteredTokens")
 
     val removedStopWords = stopWordsRemover.transform(tokenizedDF)
-
-    removedStopWords.show(true)
-
 
     //Parsing each list of words to a CountVectorizer object or "Bag of Words".
     val countVectorizer = new CountVectorizer()
@@ -65,9 +57,6 @@ object PreProcessing {
     .fit(removedStopWords)
 
     val bagOfWords = countVectorizer.transform(removedStopWords)
-
-    bagOfWords.show(true)
-
 
     // Normalizing our vectors so we can make the cosine similarity calculation more straightforward.
     val normalizer = new Normalizer()
@@ -78,6 +67,6 @@ object PreProcessing {
 
     val data = normalizedBagOfWords
     .select("index", "normalizedBagOfWords")
-    .write.format("parquet").save(outputDir)
+    .write.mode("append").format("parquet").save(outputDir)
   }
 }
