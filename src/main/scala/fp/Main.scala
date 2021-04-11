@@ -39,11 +39,11 @@ object Main {
     // KMeans Execution
     if (version == 1) {
       // The result is the list of every K with the respective SSE.
-      val output = fp.KMeansClusteringV1Main.run(Array(preProcessingOutputDir, kMeansOutputDirV1, K, I))
+      val output = fp.KMeansClusteringV1.run(Array(preProcessingOutputDir, kMeansOutputDirV1, K, I))
       logger.info(output)
 
     } else {
-      fp.KMeansClusteringV2Main.run(Array(preProcessingOutputDir, kMeansOutputDirV2, K, I))
+      fp.KMeansClusteringV2.run(Array(preProcessingOutputDir, kMeansOutputDirV2, K, I))
     }
 
     // Post-Processing Step

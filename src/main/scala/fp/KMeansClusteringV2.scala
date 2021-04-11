@@ -11,7 +11,7 @@ import org.apache.spark.rdd.RDD
 import scala.reflect.io.File
 import scala.util.control.Breaks.{break, breakable}
 
-object KMeansClusteringV2Main {
+object KMeansClusteringV2 {
 
 
   def runKMeans(sc: SparkContext, vectors: RDD[(Long, SparseVector)], K: Int, I: Int, outputDir: String) {

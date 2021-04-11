@@ -13,7 +13,7 @@ import breeze.linalg.min
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.File
 
-object KMeansClusteringV1Main {
+object KMeansClusteringV1 {
 
   def run(args: Array[String]): ArrayBuffer[(Int, Double)] = {
 
