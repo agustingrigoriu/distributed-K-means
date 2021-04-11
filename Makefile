@@ -2,27 +2,31 @@
 
 # Customize these paths for your environment.
 # -----------------------------------------------------------
-spark.root=/home/joe/tools/spark/spark-2.3.1-bin-without-hadoop
-hadoop.root=/home/joe/tools/hadoop/hadoop-2.9.1
-app.name=Word Count
+spark.root=~/hadoop/spark-3.0.1-bin-hadoop3.2  
+hadoop.root=~/hadoop/hadoop-3.2.2
+app.name=K Means Cluster
 jar.name=spark-demo.jar
-maven.jar.name=spark-demo-1.0.jar
-job.name=wc.WordCountMain
+maven.jar.name=k-means-clustering-1.0.jar
+job.name=fp.Main
 local.master=local[4]
-local.input=input
+local.input=/mnt/d/data/data
 local.output=output
 # Pseudo-Cluster Execution
 hdfs.user.name=joe
 hdfs.input=input
 hdfs.output=output
 # AWS EMR Execution
-aws.emr.release=emr-5.17.0
-aws.bucket.name=mr-median
+aws.emr.release=emr-6.2.0
+aws.bucket.name=brody-bucket-1
 aws.input=input
 aws.output=output
+aws.version=1
+aws.K=50
+aws.I=1000
+aws.topK=20
 aws.log.dir=log
-aws.num.nodes=1
-aws.instance.type=m3.xlarge
+aws.num.nodes=4
+aws.instance.type=m4.large
 # -----------------------------------------------------------
 
 # Compiles code and builds jar (with dependencies).
@@ -110,11 +114,11 @@ upload-app-aws:
 # Main EMR launch.
 aws: jar upload-app-aws delete-output-aws
 	aws emr create-cluster \
-		--name "WordCount Spark Cluster" \
+		--name "KMeans Spark Cluster" \
 		--release-label ${aws.emr.release} \
 		--instance-groups '[{"InstanceCount":${aws.num.nodes},"InstanceGroupType":"CORE","InstanceType":"${aws.instance.type}"},{"InstanceCount":1,"InstanceGroupType":"MASTER","InstanceType":"${aws.instance.type}"}]' \
 	    --applications Name=Hadoop Name=Spark \
-		--steps Type=CUSTOM_JAR,Name="${app.name}",Jar="command-runner.jar",ActionOnFailure=TERMINATE_CLUSTER,Args=["spark-submit","--deploy-mode","cluster","--class","${job.name}","s3://${aws.bucket.name}/${jar.name}","s3://${aws.bucket.name}/${aws.input}","s3://${aws.bucket.name}/${aws.output}"] \
+		--steps Type=CUSTOM_JAR,Name="${app.name}",Jar="command-runner.jar",ActionOnFailure=TERMINATE_CLUSTER,Args=["spark-submit","--deploy-mode","cluster","--class","${job.name}","s3://${aws.bucket.name}/${jar.name}","s3://${aws.bucket.name}/${aws.input}","s3://${aws.bucket.name}/${aws.output}","${aws.version}","${aws.K}","${aws.I}","${aws.topK}"] \
 		--log-uri s3://${aws.bucket.name}/${aws.log.dir} \
 		--use-default-roles \
 		--enable-debugging \
