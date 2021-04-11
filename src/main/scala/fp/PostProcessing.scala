@@ -32,13 +32,6 @@ object PostProcessingMain {
 
     val sc = spark.sparkContext
 
-    val hadoopConf = new org.apache.hadoop.conf.Configuration
-    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    try {
-      hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
-    } catch {
-      case _: Throwable => {}
-    }
 
     // Read input of KMeansClustering Job.
     // Input format: (clusterId, (docId, doc)).

@@ -112,14 +112,6 @@ object KMeansClusteringV2Main {
 
     val sc = spark.sparkContext
 
-    val hadoopConf = new org.apache.hadoop.conf.Configuration
-    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    try {
-      hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
-    } catch {
-      case _: Throwable => {}
-    }
-
     val data = spark.read.load(inputDir).rdd
 
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))

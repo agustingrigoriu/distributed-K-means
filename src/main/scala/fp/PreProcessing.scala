@@ -32,14 +32,6 @@ object PreprocessingMain {
 
     val sc = spark.sparkContext
 
-    val hadoopConf = new org.apache.hadoop.conf.Configuration
-    val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-    try {
-    hdfs.delete(new org.apache.hadoop.fs.Path(outputDir), true)
-    } catch {
-    case _: Throwable => {}
-    }
-
     val schema = new StructType()
     .add("index", LongType, nullable = false)
     .add("tweet", StringType, true)
