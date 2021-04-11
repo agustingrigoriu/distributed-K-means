@@ -3,7 +3,6 @@ package fp
 
 import org.apache.log4j.LogManager
 import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
@@ -15,7 +14,7 @@ object KMeansClusteringV2 {
 
 
   def runKMeans(sc: SparkContext, vectors: RDD[(Long, SparseVector)], K: Int, I: Int, outputDir: String) {
-    val kMeansOutputDir = outputDir + File.separator + s"$K-Means"
+    val kMeansOutputDir = outputDir + File.separator + s"$K-means"
 
     var centroids = vectors
       .takeSample(false, K)
@@ -84,21 +83,12 @@ object KMeansClusteringV2 {
     }
 
     //TODO: Rename file so it shows the K.
-    labeledVectors.map(x=>s"${x._1},${x._2._1}")
+    labeledVectors.map(x => s"${x._1},${x._2._1}")
       .saveAsTextFile(kMeansOutputDir)
   }
 
-  def run(args: Array[String]) {
+  def run(inputDir: String, outputDir: String, K: Int, I: Int) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    if (args.length != 4) {
-      logger.error("Usage:\n")
-      System.exit(1)
-    }
-
-    val inputDir: String = args(0)
-    val outputDir: String = args(1)
-    val K: Int = args(2).toInt
-    val I: Int = args(3).toInt
 
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
@@ -120,9 +110,9 @@ object KMeansClusteringV2 {
 
     sc.parallelize(kList, K)
 
-    val kMeans = kList.map( k => {
+    val kMeans = kList.map(k => {
       val vectors = sc.parallelize(broadcastVectors.value)
-//      logger.info(s"I K-$k")
+      //      logger.info(s"I K-$k")
       runKMeans(sc, vectors, k, I, outputDir)
     })
 

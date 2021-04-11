@@ -15,14 +15,9 @@ import scala.reflect.io.File
 
 object KMeansClusteringV1 {
 
-  def run(args: Array[String]): ArrayBuffer[(Int, Double)] = {
+  def run(inputDir: String, outputDir: String, maxK: Int, I: Int): ArrayBuffer[(Int, Double, String)] = {
 
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    val inputDir = args(0)
-    val outputDir = args(1)
-    val MaxK = args(2).toInt
-    val I = args(3).toInt
-
     val spark = SparkSession.builder.appName("KMeansClustering")
       .config("spark.driver.memoryOverhead", 1024)
       .config("spark.yarn.executor.memoryOverhead", 1024)
@@ -34,13 +29,13 @@ object KMeansClusteringV1 {
     val data = spark.read.load(inputDir).rdd
 
     // K-MEANS ALGORITHM VERSION 1.
-    var SSEList = new ArrayBuffer[(Int, Double)]()
+    var SSEList = new ArrayBuffer[(Int, Double, String)]()
 
     val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
       .cache()
 
     // We keep one RDD in memory with (ID, VECTOR).
-    for (k <- 2 to MaxK) {
+    for (k <- 2 to maxK) {
 
       // Getting K random vectors to use as centroids. And parsing them to DenseVectors.
       // Resulting tuple is (centroidId, centroid)
@@ -110,14 +105,14 @@ object KMeansClusteringV1 {
         }
       }
 
-      // Adding a tuple (K, SSE) to the result array.
-      val resultTuple = (k, SSE)
-      SSEList += resultTuple
-
 
       // We save the output for this K to disk.
-      val kMeansOutputDir = outputDir + File.separator + s"$k-Means"
+      val kMeansOutputDir = outputDir + File.separator + s"$k-means"
       labeledVectors.saveAsTextFile(kMeansOutputDir)
+
+      // Adding a tuple (K, SSE) to the result array.
+      val resultTuple = (k, SSE, kMeansOutputDir)
+      SSEList += resultTuple
     }
 
     SSEList
