@@ -12,17 +12,10 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable.{ArrayBuffer, Map}
 import scala.util.control.Breaks.{break, breakable}
 
-object PreprocessingMain {
+object PreProcessing {
 
-  def main(args: Array[String]) {
+  def run(inputDir: String, outputDir: String) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
-    if (args.length != 2) {
-      logger.error("Usage:\n")
-      System.exit(1)
-    }
-
-    val inputDir: String = args(0)
-    val outputDir: String = args(1)
 
     val spark = SparkSession.builder.appName("KMeansClustering-PreProcessing")
     .config("spark.driver.memoryOverhead", 1024)

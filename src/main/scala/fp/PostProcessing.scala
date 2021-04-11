@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.File
 import scala.collection.mutable.WrappedArray
 
-object PostProcessingMain {
+object PostProcessing {
 
   def run(inputDir: String, outputDir: String, tweetsDir: String, kWords: Int) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger

@@ -36,7 +36,7 @@ object Main {
 
     logger.info(s"Pre-processing data.")
     // Pre-Processing Step
-    fp.PreprocessingMain.main(Array(inputDir, preProcessingOutputDir))
+    fp.PreProcessing.run(inputDir, preProcessingOutputDir)
     logger.info(s"End of pre-processing data.")
 
     logger.info(s"Executing KMeans v$version")
@@ -69,7 +69,7 @@ object Main {
       logger.info(s"Best K found for $minK with SSE of $minSSE.")
 
       logger.info(s"Post-processing data.")
-      fp.PostProcessingMain.run(minKDirOutputDir, postProcessingOutputDir, inputDir, topKWords)
+      fp.PostProcessing.run(minKDirOutputDir, postProcessingOutputDir, inputDir, topKWords)
       logger.info(s"End of post-processing data.")
 
 
