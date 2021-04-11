@@ -108,7 +108,8 @@ object KMeansClusteringV1 {
 
       // We save the output for this K to disk.
       val kMeansOutputDir = outputDir + File.separator + s"$k-means"
-      labeledVectors.saveAsTextFile(kMeansOutputDir)
+      labeledVectors.map(x => s"${x._1},${x._2._1}")
+      .saveAsTextFile(kMeansOutputDir)
 
       // Adding a tuple (K, SSE) to the result array.
       val resultTuple = (k, SSE, kMeansOutputDir)
