@@ -43,7 +43,7 @@ object Main {
       logger.info(output)
 
     } else {
-      fp.KMeansClusteringV2Main.main(Array(preProcessingOutputDir, kMeansOutputDirV2, K, I))
+      fp.KMeansClusteringV2Main.run(Array(preProcessingOutputDir, kMeansOutputDirV2, K, I))
     }
 
     // Post-Processing Step

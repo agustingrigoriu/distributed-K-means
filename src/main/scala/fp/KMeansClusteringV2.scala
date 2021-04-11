@@ -88,7 +88,7 @@ object KMeansClusteringV2Main {
       .saveAsTextFile(kMeansOutputDir)
   }
 
-  def main(args: Array[String]) {
+  def run(args: Array[String]) {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
     if (args.length != 4) {
       logger.error("Usage:\n")
