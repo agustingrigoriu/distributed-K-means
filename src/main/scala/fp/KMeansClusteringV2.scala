@@ -13,7 +13,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringV2 {
 
-  def runKMeans(vectorsArray: Array[(Long, SparseVector)], K: Int, I: Int, outputDir: String) : Unit = {
+  def runKMeans(inputDir: String, K: Int, I: Int, outputDir: String) : Unit = {
 
 
     val spark = SparkSession.builder.appName(s"KMeansClusteringV2-$K")
@@ -25,13 +25,13 @@ object KMeansClusteringV2 {
 
     val sc = spark.sparkContext
 
-
-    val vectors = sc.parallelize(vectorsArray)
+    val data = spark.read.load(inputDir).rdd
+    val vectors = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
 
     val kMeansOutputDir = outputDir + File.separator + s"$K-means"
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
-    logger.info(s"TEST: R-$K")
+    logger.info(s"Running $K-Means V2")
     var centroids = vectors
       .takeSample(false, K)
       .zipWithIndex
@@ -119,13 +119,8 @@ object KMeansClusteringV2 {
 
     val sc = spark.sparkContext
 
-    val data = spark.read.load(inputDir).rdd
-
-    val vectors = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1))).collect()
-
-
     sc.parallelize(2 to K).foreach(k => {
-      runKMeans(vectors, k, I, outputDir)
+      runKMeans(inputDir, k, I, outputDir)
     })
 
 
