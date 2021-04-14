@@ -6,16 +6,32 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel.DISK_ONLY
 
 import scala.reflect.io.File
 import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringV2 {
 
+  def runKMeans(vectorsArray: Array[(Long, SparseVector)], K: Int, I: Int, outputDir: String) : Unit = {
 
-  def runKMeans(sc: SparkContext, vectors: RDD[(Long, SparseVector)], K: Int, I: Int, outputDir: String) {
+
+    val spark = SparkSession.builder.appName(s"KMeansClusteringV2-$K")
+      .config("spark.driver.memoryOverhead", 1028)
+      .config("spark.yarn.executor.memoryOverhead", 1028)
+      .config("spark.driver.memory", "3g")
+      .master("local[*]")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+
+
+    val vectors = sc.parallelize(vectorsArray)
+
     val kMeansOutputDir = outputDir + File.separator + s"$K-means"
+    val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
+    logger.info(s"TEST: R-$K")
     var centroids = vectors
       .takeSample(false, K)
       .zipWithIndex
@@ -30,7 +46,7 @@ object KMeansClusteringV2 {
 
     // Initializing an RDD that will hold every vector with its cluster assignment.
     // (centroidId, (vectorId, vector))
-    var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
+    var labeledVectors: RDD[(Int, (Long, SparseVector))] = sc.emptyRDD[(Int, (Long, SparseVector))]
 
     var SSE: Double = Double.MaxValue
     val epsilon: Double = 0.001
@@ -91,30 +107,27 @@ object KMeansClusteringV2 {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
     val spark = SparkSession.builder.appName("KMeansClustering")
-      .config("spark.driver.memoryOverhead", 1024)
-      .config("spark.yarn.executor.memoryOverhead", 1024)
-      .config("spark.executor.cores", 1)
-      // .master("local[*]")
+      .config("spark.driver.memoryOverhead", 1028)
+      .config("spark.yarn.executor.memoryOverhead", 1028)
+      .config("spark.driver.memory", "3g")
+      //      .config("spark.executor.memory", "6g")
+      //      .config("spark.storage.memoryFraction", 0.2)
+      //      .config("spark.executor.cores", 1)
+
+      .master("local[*]")
       .getOrCreate()
 
     val sc = spark.sparkContext
 
     val data = spark.read.load(inputDir).rdd
 
-    val vectors: RDD[(Long, SparseVector)] = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1)))
-      .cache()
+    val vectors = data.map(row => (row.getAs[Long](0), row.getAs[SparseVector](1))).collect()
 
-    val broadcastVectors = sc.broadcast(vectors.collect())
 
-    val kList = Seq.range(2, K)
-
-    sc.parallelize(kList, K)
-
-    val kMeans = kList.map(k => {
-      val vectors = sc.parallelize(broadcastVectors.value)
-      //      logger.info(s"I K-$k")
-      runKMeans(sc, vectors, k, I, outputDir)
+    sc.parallelize(2 to K).foreach(k => {
+      runKMeans(vectors, k, I, outputDir)
     })
+
 
   }
 }
