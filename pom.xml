@@ -7,8 +7,8 @@
   <name>k-means-clustering</name>
   <properties>
     <encoding>UTF-8</encoding>
-    <scala.version>2.12.13</scala.version>
-    <spark.version>2.4.7</spark.version>
+    <scala.version>2.11.12</scala.version>
+    <spark.version>2.3.1</spark.version>
   </properties>
 
   <dependencies>
@@ -34,6 +34,13 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-mllib_2.11</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/master/spark-stemming -->
+    <dependency>
+      <groupId>com.github.master</groupId>
+      <artifactId>spark-stemming_2.10</artifactId>
+      <version>0.2.0</version>
       <scope>provided</scope>
     </dependency>
     <!-- Example of dependency included in fat Jar package. -->
