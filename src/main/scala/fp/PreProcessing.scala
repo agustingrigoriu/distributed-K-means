@@ -6,6 +6,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
 import org.apache.spark.ml.feature.{CountVectorizer, Normalizer, RegexTokenizer, StopWordsRemover}
 import org.apache.spark.ml.linalg.{DenseVector, SparseVector}
+import org.apache.spark.mllib.feature.Stemmer
 import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.ListMap
@@ -18,9 +19,10 @@ object PreProcessing {
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
     val spark = SparkSession.builder.appName("KMeansClustering-PreProcessing")
+      .master("local[*]")
     .config("spark.driver.memoryOverhead", 1024)
     .config("spark.yarn.executor.memoryOverhead", 1024)
-    // .master("local[*]")
+
     .getOrCreate()
 
     val sc = spark.sparkContext
@@ -43,12 +45,18 @@ object PreProcessing {
 
     val tokenizedDF = regexTokenizer.transform(inputDF)
 
+    val stemmedDF = new Stemmer()
+      .setInputCol("tokens")
+      .setOutputCol("stemmedTokens")
+      .setLanguage("English")
+      .transform(tokenizedDF)
+
     //Removing stop words from the tokenized arrays of words.
     val stopWordsRemover = new StopWordsRemover()
-    .setInputCol("tokens")
+    .setInputCol("stemmedTokens")
     .setOutputCol("filteredTokens")
 
-    val removedStopWords = stopWordsRemover.transform(tokenizedDF)
+    val removedStopWords = stopWordsRemover.transform(stemmedDF)
 
     //Parsing each list of words to a CountVectorizer object or "Bag of Words".
     val countVectorizer = new CountVectorizer()

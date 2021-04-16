@@ -3,8 +3,10 @@ package fp
 import org.apache.log4j.LogManager
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{LongType, StringType, StructType}
-import org.apache.spark.ml.feature.{StopWordsRemover, RegexTokenizer}
+import org.apache.spark.ml.feature.{RegexTokenizer, StopWordsRemover}
+import org.apache.spark.mllib.feature.Stemmer
 import org.apache.spark.mllib.rdd.MLPairRDDFunctions.fromPairRDD
+
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.io.File
 import scala.collection.mutable.WrappedArray
@@ -47,11 +49,16 @@ object PostProcessing {
 
     val tokenizedDF = regexTokenizer.transform(tweets)
 
+    val stemmedDF = new Stemmer()
+      .setInputCol("tokens")
+      .setOutputCol("stemmedTokens")
+      .setLanguage("English")
+      .transform(tokenizedDF)
+
     //Removing stop words from the tokenized arrays of words.
     val stopWordsRemover = new StopWordsRemover()
-      .setInputCol("tokens")
+      .setInputCol("stemmedTokens")
       .setOutputCol("filteredTokens")
-
 
     val testWords = stopWordsRemover.getStopWords
     val addWords = List(",", "", "-", "&", "rt", "amp")
