@@ -8,6 +8,10 @@ import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel.DISK_ONLY
 
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.Duration
 import scala.reflect.io.File
 import scala.util.control.Breaks.{break, breakable}
 
@@ -103,26 +107,42 @@ object KMeansClusteringV2 {
       .saveAsTextFile(kMeansOutputDir)
   }
 
+//  def run(inputDir: String, outputDir: String, K: Int, I: Int) {
+  //    val logger: org.apache.log4j.Logger = LogManager.getRootLogger
+  //
+  //    val spark = SparkSession.builder.appName("KMeansClustering")
+  //      .config("spark.driver.memoryOverhead", 1028)
+  //      .config("spark.yarn.executor.memoryOverhead", 1028)
+  //      .config("spark.driver.memory", "3g")
+  //      //      .config("spark.executor.memory", "6g")
+  //      //      .config("spark.storage.memoryFraction", 0.2)
+  //      //      .config("spark.executor.cores", 1)
+  //
+  //      .master("local[*]")
+  //      .getOrCreate()
+  //
+  //    val sc = spark.sparkContext
+  //
+  //    sc.parallelize(2 to K).foreach(k => {
+  //      runKMeans(inputDir, k, I, outputDir)
+  //    })
+  //
+  //
+  //  }
+
   def run(inputDir: String, outputDir: String, K: Int, I: Int) {
-    val logger: org.apache.log4j.Logger = LogManager.getRootLogger
+    val futuresList = new ListBuffer[Future[Unit]]
 
-    val spark = SparkSession.builder.appName("KMeansClustering")
-      .config("spark.driver.memoryOverhead", 1028)
-      .config("spark.yarn.executor.memoryOverhead", 1028)
-      .config("spark.driver.memory", "3g")
-      //      .config("spark.executor.memory", "6g")
-      //      .config("spark.storage.memoryFraction", 0.2)
-      //      .config("spark.executor.cores", 1)
+    for (k <- 2 to K - 1) {
+      val futureKMeans = Future(
+        runKMeans(inputDir, k, I, outputDir)
+      )
 
-      .master("local[*]")
-      .getOrCreate()
+      futuresList += futureKMeans
+    }
 
-    val sc = spark.sparkContext
-
-    sc.parallelize(2 to K).foreach(k => {
-      runKMeans(inputDir, k, I, outputDir)
-    })
-
-
+    for (futureKMeans <- futuresList) {
+      Await.result(futureKMeans, Duration.Inf)
+    }
   }
 }
