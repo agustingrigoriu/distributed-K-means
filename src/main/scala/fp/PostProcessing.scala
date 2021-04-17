@@ -65,7 +65,7 @@ object PostProcessing {
     val allWords = addWords ++ testWords
     stopWordsRemover.setStopWords(allWords.toArray)
 
-    val removedStopWords = stopWordsRemover.transform(tokenizedDF)
+    val removedStopWords = stopWordsRemover.transform(stemmedDF)
 
     val joined = inputDF.join(removedStopWords, "index").drop("tweet", "tokens").rdd
 
@@ -83,12 +83,6 @@ object PostProcessing {
     output.coalesce(1).write.json(outputDir)
     //output.saveAsTextFile(outputDir)
 
-
-    // Group RDD by key => (clusterId, Iterable[(docId, doc)]
-
-    // For each group, extract K top words from the group and map it to a list of them.
-    // groupuedClusters = clusters.mapValues( group => getTopKWords(k))
-    // Save the results in a file
   }
 
 }
