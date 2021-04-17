@@ -9,6 +9,10 @@ import scala.util.control.Breaks.{break, breakable}
 
 object Utils {
 
+  val TokensRegex = "\\W"
+
+  val stopWords = List("http", "https", "amp", "rt", "t", "c", "the", "m")
+
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: DenseVector) = {
 
@@ -87,14 +91,14 @@ object Utils {
         textDict(word) += 1
       }
     }
-    val res = ListMap(textDict.toSeq.sortBy(_._2):_*).take(K)
+    val res = ListMap(textDict.toSeq.sortBy(_._2): _*).take(K)
     res
   }
 
-    def getTopKWords1(words: Iterable[(String, Int)], K: Int): List[(String, Int)] = {
+  def getTopKWords1(words: Iterable[(String, Int)], K: Int): List[(String, Int)] = {
     val res = new ArrayBuffer[(String, Int)]()
     var count = 0
-    breakable{
+    breakable {
       for (word <- words) {
         res += (word)
       }
