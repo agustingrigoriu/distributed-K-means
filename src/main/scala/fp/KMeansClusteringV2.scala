@@ -2,7 +2,6 @@ package fp
 
 
 import org.apache.log4j.LogManager
-import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.ml.linalg.SparseVector
 import org.apache.spark.rdd.RDD
@@ -13,11 +12,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.reflect.io.File
+import scala.util.{Failure, Success}
 import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringV2 {
 
-  def runKMeans(inputDir: String, K: Int, I: Int, outputDir: String) : Unit = {
+  def runKMeans(inputDir: String, K: Int, I: Int, outputDir: String) : Double = {
 
 
     val spark = SparkSession.builder.appName(s"KMeansClusteringV2-$K")
@@ -35,7 +35,7 @@ object KMeansClusteringV2 {
     val kMeansOutputDir = outputDir + File.separator + s"$K-means"
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
-    logger.info(s"Running $K-Means V2")
+    logger.info(s"Running V2 for $K-Means")
     var centroids = vectors
       .takeSample(false, K)
       .zipWithIndex
@@ -105,6 +105,8 @@ object KMeansClusteringV2 {
     //TODO: Rename file so it shows the K.
     labeledVectors.map(x => s"${x._1},${x._2._1}")
       .saveAsTextFile(kMeansOutputDir)
+
+    SSE
   }
 
 //  def run(inputDir: String, outputDir: String, K: Int, I: Int) {
@@ -131,7 +133,10 @@ object KMeansClusteringV2 {
   //  }
 
   def run(inputDir: String, outputDir: String, K: Int, I: Int) {
-    val futuresList = new ListBuffer[Future[Unit]]
+
+    val logger: org.apache.log4j.Logger = LogManager.getRootLogger
+
+    val futuresList = new ListBuffer[Future[Double]]
 
     for (k <- 2 to K - 1) {
       val futureKMeans = Future(
@@ -141,8 +146,12 @@ object KMeansClusteringV2 {
       futuresList += futureKMeans
     }
 
-    for (futureKMeans <- futuresList) {
-      Await.result(futureKMeans, Duration.Inf)
+    val f = Future.sequence(futuresList.toList)
+    Await.ready(f, Duration.Inf)
+
+    f onComplete {
+      case Success(results) => for (result <- results) logger.info(result)
+      case Failure(t) => println("An error has occured: " + t.getMessage)
     }
   }
 }
