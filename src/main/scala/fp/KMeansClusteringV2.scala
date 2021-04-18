@@ -17,7 +17,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 object KMeansClusteringV2 {
 
-  def runKMeans(inputDir: String, K: Int, I: Int, outputDir: String) : Double = {
+  def runKMeans(inputDir: String, K: Int, I: Int, outputDir: String): (Int, Double) = {
 
 
     val spark = SparkSession.builder.appName(s"KMeansClusteringV2-$K")
@@ -106,10 +106,10 @@ object KMeansClusteringV2 {
     labeledVectors.map(x => s"${x._1},${x._2._1}")
       .saveAsTextFile(kMeansOutputDir)
 
-    SSE
+    (K, SSE)
   }
 
-//  def run(inputDir: String, outputDir: String, K: Int, I: Int) {
+  //  def run(inputDir: String, outputDir: String, K: Int, I: Int) {
   //    val logger: org.apache.log4j.Logger = LogManager.getRootLogger
   //
   //    val spark = SparkSession.builder.appName("KMeansClustering")
@@ -136,7 +136,9 @@ object KMeansClusteringV2 {
 
     val logger: org.apache.log4j.Logger = LogManager.getRootLogger
 
-    val futuresList = new ListBuffer[Future[Double]]
+
+    val futuresList = new ListBuffer[Future[(Int, Double)]]
+    val SSEList = new ListBuffer[(Int, Double)]
 
     for (k <- 2 to K - 1) {
       val futureKMeans = Future(
@@ -150,8 +152,10 @@ object KMeansClusteringV2 {
     Await.ready(f, Duration.Inf)
 
     f onComplete {
-      case Success(results) => for (result <- results) logger.info(result)
+      case Success(results) => for (result <- results) SSEList += result
       case Failure(t) => println("An error has occured: " + t.getMessage)
     }
+
+    logger.info(s"OUTPUT: $SSEList")
   }
 }
