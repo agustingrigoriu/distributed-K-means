@@ -56,7 +56,7 @@ object KMeansClusteringV1 {
       var labeledVectors = sc.emptyRDD[(Int, (Long, SparseVector))]
 
       var SSE: Double = Double.MaxValue
-      val epsilon: Double = 0.001
+      val epsilon: Double = Utils.Epsilon
 
       breakable {
         for (_ <- 0 to I) {

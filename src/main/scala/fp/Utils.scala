@@ -13,6 +13,8 @@ object Utils {
 
   val stopWords = List("http", "https", "amp", "rt", "t", "c", "the", "m")
 
+  val Epsilon = 0.0001
+
   // Since we receive normalized vectors, we just need to compute the dot product.
   def cosineSimilarity(vectorA: SparseVector, vectorB: DenseVector) = {
 
