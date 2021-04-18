@@ -152,10 +152,10 @@ object KMeansClusteringV2 {
     Await.ready(f, Duration.Inf)
 
     f onComplete {
-      case Success(results) => for (result <- results) SSEList += result
+      case Success(results) => for (result <- results) logger.info(result)
       case Failure(t) => println("An error has occured: " + t.getMessage)
     }
 
-    logger.info(s"OUTPUT: $SSEList")
+//    logger.info(s"OUTPUT: $SSEList")
   }
 }
