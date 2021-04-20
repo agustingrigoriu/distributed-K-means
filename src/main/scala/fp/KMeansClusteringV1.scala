@@ -97,7 +97,7 @@ object KMeansClusteringV1 {
 
           // We check how much the SSE changed w.r.t the previous iteration. If the change is below epsilon, we stop.
           if ((SSE - newSSE).abs <= epsilon) {
-            SSE = newSSE
+            break
           }
 
           // Setting the new SSE.
